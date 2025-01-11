@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Contador de Series</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            color: #555;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        .big-button {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.5rem;
+            margin-top: 20px;
+        }
+        .timer {
+            font-size: 2rem;
+            margin: 20px 0;
+            color: #333;
+        }
+        .log {
+            text-align: left;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .rest-button {
+            background-color: #aaa;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: not-allowed;
+        }
+        .rest-button.active {
+            background-color: #28a745;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GYM<br>Contador de series</h1>
+        <label for="series">Cantidad de series:</label>
+        <input type="number" id="series" placeholder="Ingrese el número de series">
+
+        <label for="rest">Tiempo de descanso (segundos):</label>
+        <input type="number" id="rest" placeholder="Ingrese el tiempo de descanso">
+
+        <button id="start-btn">INICIAR ENTRENAMIENTO</button>
+        <button id="series-btn" class="big-button" style="display: none;">REGISTRE SERIE TERMINADA</button>
+        <button id="rest-btn" class="big-button rest-button" style="display: none;">TIEMPO DE DESCANSO</button>
+
+        <div class="timer" id="timer">00:00</div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const seriesInput = document.getElementById('series');
+        const restInput = document.getElementById('rest');
+        const startButton = document.getElementById('start-btn');
+        const seriesButton = document.getElementById('series-btn');
+        const restButton = document.getElementById('rest-btn');
+        const timerDisplay = document.getElementById('timer');
+        const logContainer = document.getElementById('log');
+
+        let seriesCount = 0;
+        let currentSeries = 1; // Inicia en 1
+        let timerInterval;
+        let restInterval;
+        let seriesStartTime;
+
+        const restAudio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function startSeriesTimer() {
+            seriesStartTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - seriesStartTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsed);
+            }, 1000);
+        }
+
+        function endSeriesTimer() {
+            clearInterval(timerInterval);
+            const elapsed = Math.floor((Date.now() - seriesStartTime) / 1000);
+            logContainer.innerHTML += `<p>Serie ${currentSeries}: ${formatTime(elapsed)}</p>`;
+            return elapsed;
+        }
+
+        function startRest(restTime) {
+            let remainingTime = restTime;
+            timerDisplay.textContent = "Tiempo de descanso";
+            restButton.style.display = 'block';
+            restButton.disabled = false;
+            restButton.classList.add("active");
+
+            restInterval = setInterval(() => {
+                remainingTime--;
+                timerDisplay.textContent = formatTime(remainingTime);
+
+                if (remainingTime <= 0) {
+                    clearInterval(restInterval);
+                    restAudio.play();
+                    Swal.fire({
+                        title: '¡Descanso terminado!',
+                        text: 'Es hora de empezar la siguiente serie.',
+                        icon: 'info',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
+                    restButton.disabled = true;
+                    restButton.classList.remove("active");
+                    restButton.style.display = 'none';
+                    seriesButton.disabled = false;
+                }
+            }, 1000);
+        }
+
+        startButton.addEventListener('click', () => {
+            seriesCount = parseInt(seriesInput.value);
+            const restTime = parseInt(restInput.value);
+
+            if (isNaN(seriesCount) || seriesCount <= 0 || isNaN(restTime) || restTime <= 0) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Por favor, ingrese valores válidos.',
+                    icon: 'error',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+                return;
+            }
+
+            startButton.style.display = 'none';
+            seriesButton.style.display = 'block';
+            currentSeries = 1; // Reinicia a 1
+            logContainer.innerHTML = '';
+            startSeriesTimer();
+        });
+
+        seriesButton.addEventListener('click', () => {
+            const restTime = parseInt(restInput.value);
+
+            if (currentSeries <= seriesCount) {
+                endSeriesTimer();
+
+                if (currentSeries < seriesCount) {
+                    seriesButton.disabled = true;
+                    startRest(restTime);
+                    currentSeries++;
+                } else {
+                    seriesButton.style.display = 'none';
+                    Swal.fire({
+                        title: '¡Entrenamiento terminado!',
+                        text: 'Has completado todas las series. ¡Buen trabajo!',
+                        icon: 'success',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
+                    startButton.style.display = 'block';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
